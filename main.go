@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -35,23 +36,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	//*** 終了受付 ***//
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	signals := make(chan os.Signal, 1)
 	signal.Notify(signals, os.Interrupt)
-
-	done := make(chan struct{})
-
-	go func() {
-	SIGNAL_FOR:
-		for {
-			select {
-			case <-signals:
-				close(done)
-				break SIGNAL_FOR
-			}
-		}
-	}()
-	//*** 終了受付 ***//
 
 	topic := "test.D"
 
@@ -82,7 +71,7 @@ func main() {
 	PRODUCER_FOR:
 		for {
 			select {
-			case <-signals:
+			case <-ctx.Done():
 				break PRODUCER_FOR
 			default:
 				timestamp := time.Now().UnixNano()
@@ -130,7 +119,7 @@ func main() {
 	CONSUMER_FOR:
 		for {
 			select {
-			case <-signals:
+			case <-ctx.Done():
 				break CONSUMER_FOR
 			default:
 				msg, err := c.ReadMessage(-1)
@@ -149,7 +138,7 @@ func main() {
 
 	fmt.Println("confluent-kafka-go-example start.")
 
-	<-done
+	<-signals
 
 	fmt.Println("confluent-kafka-go-example stop.")
 }
